@@ -27,6 +27,10 @@ class Bot(commands.Bot):
         modules_dir.mkdir(exist_ok=True)
         self.modules_dir = modules_dir.resolve()
 
+        core_modules_dir = here / "core_modules"
+        core_modules_dir.mkdir(exist_ok=True)
+        self.core_modules_dir = core_modules_dir.resolve()
+
         self.settings_file = (self.data_dir / "settings.toml").resolve()
 
         if self.launch_args.dev:
@@ -84,6 +88,12 @@ class Bot(commands.Bot):
         # unload currently loaded modules
         for loaded_module in list(self.extensions.keys()):
             await self.unload_extension(loaded_module)
+
+        # load core modules
+        for module in self.core_modules_dir.glob("*/__init__.py"):
+            import_path = module.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
+
+            await self.load_extension(import_path)
 
         # load modules
         for module in self.modules_dir.glob("*/__init__.py"):
