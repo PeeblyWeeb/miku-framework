@@ -9,3 +9,6 @@ class Module(commands.Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
         self.logger = logging.getLogger(f"[Module] {self.__class__.__name__}")
+
+    def get_sublogger(self, name):
+        return logging.getLogger(f"[Module] {self.__class__.__name__}.{name}")
