@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import discord
+from discord.app_commands import AppCommandError
 from discord.ext import commands
 from watchdog.observers import Observer
 
@@ -13,6 +14,14 @@ from miku_framework.dev.module_watchdog import AsyncModuleWatchdog
 
 here = Path(__file__).parent
 _logger = logging.getLogger("framework.bot")
+
+
+class CommandTree(discord.app_commands.CommandTree):
+    async def on_error(self, interaction: discord.Interaction[discord.Client], error: AppCommandError) -> None:
+        if interaction.extras.get("error_handled"):
+            return
+
+        _logger.exception(f"{error.__class__.__name__}: {error}", exc_info=error)
 
 
 class Bot(commands.Bot):
@@ -39,6 +48,7 @@ class Bot(commands.Bot):
         super().__init__(
             command_prefix=[],
             intents=discord.Intents.all(),
+            tree_cls=CommandTree,
         )
 
     async def start(self, *_, **__) -> None:
