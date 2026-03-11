@@ -6,6 +6,16 @@ requires-python = ">=3.13"
 dependencies = ["discord.py>=2.7.1"]
 version = "0"                                                                       # versioning is unused.
 
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+"miku_framework" = ["default_settings.toml"]
+
 [tool.ruff.lint]
 select = [
     "F",     # pyflakes
