@@ -1,0 +1,66 @@
+[project]
+name = "miku-framework"
+description = "discord.py wrapper/framework made for the Hatsune Miku discord bot."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["discord.py>=2.7.1"]
+version = "0"                                                                       # versioning is unused.
+
+[tool.ruff.lint]
+select = [
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "E",     # pycodestyle errors
+    "I",     # isort
+    "N",     # pep8-naming
+    "D",     # pydocstyle
+    "UP",    # pyupgrade
+    "ASYNC", # flake8-async
+    "S",     # flake8-bandit
+    "B",     # flake8-bugbear
+    "COM",   # flake8-commas
+    "C4",    # flake8-comprehensions
+    "Q",     # flake8-quotes
+    "RET",   # flake8-return
+    "SIM",   # flake8-simplify
+    "ARG",   # flake8-unused-arguments
+    "PTH",   # flake8-use-pathlib
+    "PGH",   # pygrep-hooks
+    "PL",    # Pylint
+    "PERF",  # Perflint
+    "RUF",   # Ruff-specific rules
+]
+
+ignore = [
+    # Missing docstrings
+    # This should be enabled in the future, but for now it's just too much at once
+    "D10",
+
+    # I have aged 30 years due to this rule
+    # - Fripe
+    "D401",
+
+    # Wacky docstring defaults
+    "D203",
+    "D213",
+
+    # Insane suggestion that pathlib.Path.open() should be prefered over open()
+    "PTH123",
+
+    # Too inflexible to be reasonable
+    # https://github.com/Breadcord/Breadcord/pull/144#issuecomment-1732071028
+    "PLR0913",
+
+    # Warnings on every usage of the random module is outrageous
+    "S311",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # Unused imports in __init__.py are fine
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
