@@ -1,6 +1,8 @@
 # Developing
 
 - Clone this repository
+- Open in **Visual Studio Code** (please use vscode)
+  - Install suggested extensions
 - Run `uv run python -m mikuframework`
 
 # Credits
