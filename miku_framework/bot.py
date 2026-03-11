@@ -1,25 +1,36 @@
+import asyncio
 import logging
 import shutil
 import tomllib
+from argparse import Namespace
 from pathlib import Path
 
 import discord
 from discord.ext import commands
+from watchdog.observers import Observer
+
+from miku_framework.dev.module_watchdog import AsyncModuleWatchdog
 
 here = Path(__file__).parent
 _logger = logging.getLogger("framework.bot")
 
 
 class Bot(commands.Bot):
-    def __init__(self) -> None:
+    def __init__(self, launch_args: Namespace) -> None:
+        self.launch_args = launch_args
 
-        self.data_dir = Path("./data")
-        self.data_dir.mkdir(exist_ok=True)
+        data_dir = Path("./data")
+        data_dir.mkdir(exist_ok=True)
+        self.data_dir = data_dir.resolve()
 
-        self.modules_dir = self.data_dir / "modules"
-        self.modules_dir.mkdir(exist_ok=True)
+        modules_dir = self.data_dir / "modules"
+        modules_dir.mkdir(exist_ok=True)
+        self.modules_dir = modules_dir.resolve()
 
-        self.settings_file = self.data_dir / "settings.toml"
+        self.settings_file = (self.data_dir / "settings.toml").resolve()
+
+        if self.launch_args.dev:
+            _logger.setLevel(logging.DEBUG)
 
         super().__init__(
             command_prefix=[],
@@ -41,6 +52,23 @@ class Bot(commands.Bot):
     async def setup_hook(self) -> None:
         await self.load_modules()
 
+        if self.launch_args.dev:
+
+            async def watchdog_callback():
+                _logger.debug("\n\n=== Detected module changes, reloading.. ===\n\n")
+
+                await self.load_modules()
+
+            self.module_observer = Observer()
+            self.module_observer.schedule(
+                AsyncModuleWatchdog(watchdog_callback, asyncio.get_event_loop()),
+                str(self.modules_dir),
+                recursive=True,
+            )
+            self.module_observer.start()
+
+            _logger.debug(f"Watching for module changes in '{self.modules_dir}'")
+
     def load_settings(self) -> None:
         if not self.settings_file.exists():
             shutil.copy(here / "default_settings.toml", self.settings_file)
@@ -59,7 +87,7 @@ class Bot(commands.Bot):
 
         # load modules
         for module in self.modules_dir.glob("*/__init__.py"):
-            import_path = module.relative_to(".").as_posix().replace("/", ".").replace(".py", "")
+            import_path = module.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
 
             await self.load_extension(import_path)
 
