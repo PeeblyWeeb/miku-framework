@@ -10,6 +10,8 @@ class Module(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"[Module] {self.__class__.__name__}")
 
+        self.storage_path = self.bot.storage_dir / self.__class__.__name__
+
         if self.bot.launch_args.dev:
             self.logger.setLevel(logging.DEBUG)
 

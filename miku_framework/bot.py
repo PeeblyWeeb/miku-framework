@@ -32,13 +32,17 @@ class Bot(commands.Bot):
         data_dir.mkdir(exist_ok=True)
         self.data_dir = data_dir.resolve()
 
+        core_modules_dir = here / "core_modules"
+        core_modules_dir.mkdir(exist_ok=True)
+        self.core_modules_dir = core_modules_dir.resolve()
+
         modules_dir = self.data_dir / "modules"
         modules_dir.mkdir(exist_ok=True)
         self.modules_dir = modules_dir.resolve()
 
-        core_modules_dir = here / "core_modules"
-        core_modules_dir.mkdir(exist_ok=True)
-        self.core_modules_dir = core_modules_dir.resolve()
+        storage_dir = self.data_dir / "storage"
+        storage_dir.mkdir(exist_ok=True)
+        self.storage_dir = storage_dir.resolve()
 
         self.settings_file = (self.data_dir / "settings.toml").resolve()
 
