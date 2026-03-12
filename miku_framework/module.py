@@ -10,5 +10,12 @@ class Module(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"[Module] {self.__class__.__name__}")
 
+        if self.bot.launch_args.dev:
+            self.logger.setLevel(logging.DEBUG)
+
     def get_sublogger(self, name):
-        return logging.getLogger(f"[Module] {self.__class__.__name__}.{name}")
+        logger = logging.getLogger(f"[Module] {self.__class__.__name__}.{name}")
+        if self.bot.launch_args.dev:
+            logger.setLevel(logging.DEBUG)
+
+        return logger
