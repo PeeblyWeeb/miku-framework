@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import re
 import shutil
 import tomllib
 from argparse import Namespace
 from pathlib import Path
 
 import discord
-from discord.app_commands import AppCommandError
+from discord.app_commands import AppCommandError, CommandInvokeError
 from discord.ext import commands
 from watchdog.observers import Observer
 
@@ -22,6 +23,20 @@ class CommandTree(discord.app_commands.CommandTree):
             return
 
         _logger.exception(f"{error.__class__.__name__}: {error}", exc_info=error)
+        cause = error.original.__class__.__name__ if isinstance(error, CommandInvokeError) else error.__class__.__name__
+        error_code = "_".join(
+            re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)", cause),
+        ).upper()
+        message = "\n".join(
+            [
+                "Something went wrong handling your request.",
+                f"-# This incident has been recorded; {error_code}",
+            ],
+        )
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content=message)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
 
 
 class Bot(commands.Bot):
