@@ -30,7 +30,7 @@ class CommandTree(discord.app_commands.CommandTree):
             await interaction.response.send_message(message, ephemeral=True)
 
 
-class Bot(commands.Bot):
+class Bot(commands.AutoShardedBot):
     def __init__(self, launch_args: Namespace) -> None:
         self.launch_args = launch_args
 
