@@ -3,7 +3,7 @@ import re
 from discord.app_commands import CommandInvokeError
 
 
-def generate_generic_error_message(exception: Exception):
+def generate_generic_error_message(exception: Exception, subject: str | None = None):
     cause = (
         exception.original.__class__.__name__
         if isinstance(exception, CommandInvokeError)
@@ -14,7 +14,7 @@ def generate_generic_error_message(exception: Exception):
     ).upper()
     return "\n".join(
         [
-            "Something went wrong handling your request.",
+            subject or "Something went wrong handling your request.",
             f"-# This incident has been recorded; {error_code}",
         ],
     )
