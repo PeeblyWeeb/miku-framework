@@ -1,6 +1,8 @@
 import asyncio
+import importlib
 import logging
 import shutil
+import sys
 import tomllib
 from argparse import Namespace
 from pathlib import Path
@@ -107,7 +109,16 @@ class Bot(commands.AutoShardedBot):
 
         # unload currently loaded modules
         for loaded_module in list(self.extensions.keys()):
+            _logger.debug(f"Unloading module: {loaded_module}")
+
             await self.unload_extension(loaded_module)
+            for module_name in list(sys.modules):
+                if module_name == loaded_module or module_name.startswith(loaded_module.removesuffix(".__init__")):
+                    _logger.debug(f"⤷ Unloading import: {module_name}")
+
+                    del sys.modules[module_name]
+
+        importlib.invalidate_caches()
 
         # load core modules
         for module in self.core_modules_dir.glob("*/__init__.py"):
