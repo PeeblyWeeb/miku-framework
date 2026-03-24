@@ -101,11 +101,8 @@ class Bot(commands.AutoShardedBot):
         with open(self.settings_file) as f:
             self.settings = tomllib.loads(f.read())
 
-    async def load_modules(self, modules_to_load: list[str] | None = None) -> None:
+    async def load_modules(self) -> None:
         _logger.info("All i wanted to do, was follow you. (Loading modules)")
-
-        if not modules_to_load:
-            modules_to_load = []
 
         # unload currently loaded modules
         for loaded_module in list(self.extensions.keys()):

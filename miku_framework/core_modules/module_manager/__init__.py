@@ -22,6 +22,17 @@ class ModuleManager(Module):
         await ctx.message.add_reaction("✅")
         await ctx.message.remove_reaction("⏳", self.bot.user)  # we do this after to avoid jittering the chat around
 
+    @commands.is_owner()
+    @commands.command(
+        name="reload",
+        description="Unload all loaded modules and then reload from module folder.",
+    )
+    async def reload(self, ctx: commands.Context):
+        assert self.bot.user
+        await self.bot.load_modules()
+
+        await ctx.message.add_reaction("✅")
+
 
 async def setup(bot: Bot):
     await bot.add_cog(ModuleManager(bot))
