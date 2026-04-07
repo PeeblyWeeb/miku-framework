@@ -76,13 +76,14 @@ class Bot(commands.AutoShardedBot):
         super().run(token="", log_handler=None, **kwargs)
 
     async def setup_hook(self) -> None:
-        await self.load_modules()
-
         if dsn := self.settings.get("sentry_dsn"):
-            _logger.info("Initializing sentry")
+            environment = self.settings.get("sentry_environment") or "development"
+
+            _logger.info(f"Initializing sentry with environment '{environment}'")
             sentry_sdk.init(
                 dsn=dsn,
                 server_name=socket.gethostname(),
+                environment=environment,
                 # Add data like request headers and IP for users,
                 # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
                 send_default_pii=True,
@@ -94,6 +95,8 @@ class Bot(commands.AutoShardedBot):
             )
         else:
             _logger.warning("Sentry DSN was not provided, sentry will not be initialized.")
+
+        await self.load_modules()
 
         if self.launch_args.dev:
 
