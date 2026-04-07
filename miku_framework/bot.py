@@ -2,12 +2,14 @@ import asyncio
 import importlib
 import logging
 import shutil
+import socket
 import sys
 import tomllib
 from argparse import Namespace
 from pathlib import Path
 
 import discord
+import sentry_sdk
 from discord.app_commands import AppCommandError
 from discord.ext import commands
 from watchdog.observers import Observer
@@ -64,8 +66,6 @@ class Bot(commands.AutoShardedBot):
         )
 
     async def start(self, *_, **__) -> None:
-        discord.utils.setup_logging()
-
         self.load_settings()
 
         self.command_prefix = commands.when_mentioned_or(*self.settings["command_prefixes"])
@@ -77,6 +77,23 @@ class Bot(commands.AutoShardedBot):
 
     async def setup_hook(self) -> None:
         await self.load_modules()
+
+        if dsn := self.settings.get("sentry_dsn"):
+            _logger.info("Initializing sentry")
+            sentry_sdk.init(
+                dsn=dsn,
+                server_name=socket.gethostname(),
+                # Add data like request headers and IP for users,
+                # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+                send_default_pii=True,
+                # Enable sending logs to Sentry
+                enable_logs=True,
+                # Set traces_sample_rate to 1.0 to capture 100%
+                # of transactions for tracing.
+                traces_sample_rate=1.0,
+            )
+        else:
+            _logger.warning("Sentry DSN was not provided, sentry will not be initialized.")
 
         if self.launch_args.dev:
 
