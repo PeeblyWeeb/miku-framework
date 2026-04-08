@@ -1,0 +1,7 @@
+.vscode/
+.venv/
+miku_framework.egg-info/
+data/
+
+README.md
+uv.lock

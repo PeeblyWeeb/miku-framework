@@ -2,6 +2,7 @@ import argparse
 import logging
 
 import discord
+from dotenv import load_dotenv
 
 from .bot import Bot
 
@@ -19,6 +20,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 if __name__ == "__main__":
+    load_dotenv()
     discord.utils.setup_logging()
 
     _logger.info(f"Running with arguments: {args}")

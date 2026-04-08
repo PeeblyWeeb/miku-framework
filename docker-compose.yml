@@ -1,0 +1,8 @@
+services:
+  miku:
+    build: .
+    restart: always
+    volumes:
+      - ./data:/miku/data
+    env_file: 
+      - .env

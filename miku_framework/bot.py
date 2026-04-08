@@ -1,10 +1,10 @@
 import asyncio
 import importlib
+import json
 import logging
-import shutil
+import os
 import socket
 import sys
-import tomllib
 from argparse import Namespace
 from pathlib import Path
 
@@ -14,6 +14,7 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 from watchdog.observers import Observer
 
+from miku_framework.config import FrameworkConfig
 from miku_framework.dev.module_watchdog import AsyncModuleWatchdog
 from miku_framework.util import generate_generic_error_message
 
@@ -58,7 +59,7 @@ class Bot(commands.AutoShardedBot):
         config_dir.mkdir(exist_ok=True)
         self.config_dir = config_dir.resolve()
 
-        self.settings_file = (self.data_dir / "settings.toml").resolve()
+        self.config_file = (self.config_dir / "framework.json").resolve()
 
         if self.launch_args.dev:
             _logger.setLevel(logging.DEBUG)
@@ -81,16 +82,24 @@ class Bot(commands.AutoShardedBot):
     async def start(self, *_, **__) -> None:
         self.load_settings()
 
-        self.command_prefix = commands.when_mentioned_or(*self.settings["command_prefixes"])
+        self.command_prefix = commands.when_mentioned_or(*self.config.command_prefixes)
 
-        await super().start(token=self.settings["token"])
+        if not (token := os.getenv("DISCORD_TOKEN")):
+            _logger.error("Missing DISCORD_TOKEN in environment, the application can not continue.")
+            return
+        await super().start(token=token)
 
     def run(self, *_, **kwargs) -> None:
         super().run(token="", log_handler=None, **kwargs)
 
+    async def close(self) -> None:
+        self.save_settings()
+
+        return await super().close()
+
     async def setup_hook(self) -> None:
-        if dsn := self.settings.get("sentry_dsn"):
-            environment = self.settings.get("sentry_environment") or "development"
+        if dsn := os.getenv("SENTRY_DSN"):
+            environment = os.getenv("SENTRY_ENVIRONMENT") or "development"
 
             _logger.info(f"Initializing sentry with environment '{environment}'")
             sentry_sdk.init(
@@ -107,7 +116,7 @@ class Bot(commands.AutoShardedBot):
                 traces_sample_rate=1.0,
             )
         else:
-            _logger.warning("Sentry DSN was not provided, sentry will not be initialized.")
+            _logger.warning("Missing SENTRY_DSN in environment, sentry will not be initialized.")
 
         await self.load_modules()
 
@@ -129,10 +138,17 @@ class Bot(commands.AutoShardedBot):
             _logger.debug(f"Watching for module changes in '{self.modules_dir}'")
 
     def load_settings(self) -> None:
-        if not self.settings_file.exists():
-            shutil.copy(here / "default_settings.toml", self.settings_file)
-        with open(self.settings_file) as f:
-            self.settings = tomllib.loads(f.read())
+        self.config_file.touch(exist_ok=True)
+        with open(self.config_file) as f:
+            config = json.loads(f.read() or "{}")
+        self.config: FrameworkConfig = FrameworkConfig(**config)
+
+        _logger.info(f"Loaded framework settings from '{self.config_file}'")
+
+    def save_settings(self) -> None:
+        with open(self.config_file, "w") as f:
+            f.write(json.dumps(self.config.model_dump(), indent=4))
+        _logger.info(f"Saved framework settings to '{self.config_file}'")
 
     async def load_module_from_path(self, path: Path):
         import_path = path.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
