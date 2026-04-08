@@ -1,10 +1,13 @@
+import json
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any, Literal, final
 
+import aiofiles
 from discord import Interaction
 from discord.app_commands import AppCommandError
 from discord.ext import commands
+from pydantic import BaseModel
 
 from miku_framework.bot import Bot
 
@@ -18,8 +21,36 @@ class Module(commands.Cog):
         storage_path.mkdir(exist_ok=True)
         self.storage_path = storage_path.resolve()
 
+        config_file = self.bot.config_dir / f"{self.__class__.__name__}.json"
+        self.config_file = config_file.resolve()
+
+        self._config: BaseModel | None = None
+
         if self.bot.launch_args.dev:
             self.logger.setLevel(logging.DEBUG)
+
+    def init_config[T: BaseModel](self, config_model: type[T]) -> T:
+        if not self.config_file.exists():
+            self.config_file.touch()
+
+            with open(self.config_file, "w") as f:
+                json.dump(config_model(**{}).model_dump(), f, indent=4)
+
+        self.logger.info(f"Loaded module config from '{self.config_file}'")
+
+        with open(self.config_file) as f:
+            module_config = json.loads(f.read() or "{}")
+
+        self._config = config_model(**module_config)
+        return self._config
+
+    async def cog_unload(self) -> None:
+        if self._config:
+            async with aiofiles.open(self.config_file, "w") as f:
+                await f.write(json.dumps(self._config.model_dump(), indent=4))
+
+            self.logger.info(f"Saved module config to '{self.config_file}'")
+        return await super().cog_unload()
 
     async def on_module_command_error(
         self,

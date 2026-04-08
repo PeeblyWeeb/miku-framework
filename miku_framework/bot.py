@@ -54,6 +54,10 @@ class Bot(commands.AutoShardedBot):
         storage_dir.mkdir(exist_ok=True)
         self.storage_dir = storage_dir.resolve()
 
+        config_dir = self.data_dir / "config"
+        config_dir.mkdir(exist_ok=True)
+        self.config_dir = config_dir.resolve()
+
         self.settings_file = (self.data_dir / "settings.toml").resolve()
 
         if self.launch_args.dev:
@@ -130,6 +134,11 @@ class Bot(commands.AutoShardedBot):
         with open(self.settings_file) as f:
             self.settings = tomllib.loads(f.read())
 
+    async def load_module_from_path(self, path: Path):
+        import_path = path.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
+
+        await self.load_extension(import_path)
+
     async def load_modules(self) -> None:
         _logger.info("All i wanted to do, was follow you. (Loading modules)")
 
@@ -148,15 +157,11 @@ class Bot(commands.AutoShardedBot):
 
         # load core modules
         for module in self.core_modules_dir.glob("*/__init__.py"):
-            import_path = module.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
-
-            await self.load_extension(import_path)
+            await self.load_module_from_path(module)
 
         # load modules
         for module in self.modules_dir.glob("*/__init__.py"):
-            import_path = module.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
-
-            await self.load_extension(import_path)
+            await self.load_module_from_path(module)
 
         _logger.info(
             f"Loaded {len(self.extensions)} module(s).",
