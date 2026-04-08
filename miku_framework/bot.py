@@ -23,7 +23,7 @@ _logger = logging.getLogger("framework.bot")
 
 class CommandTree(discord.app_commands.CommandTree):
     async def on_error(self, interaction: discord.Interaction[discord.Client], error: AppCommandError) -> None:
-        if interaction.extras.get("error_handled"):
+        if interaction.extras.get("__mikuframework_already_handled_error"):
             return
 
         _logger.exception(f"{error.__class__.__name__}: {error}", exc_info=error)
@@ -64,6 +64,15 @@ class Bot(commands.AutoShardedBot):
             intents=discord.Intents.all(),
             tree_cls=CommandTree,
         )
+
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+        if getattr(ctx, "__mikuframework_already_handled_error", False):
+            return
+        original_error = getattr(error, "original", error)
+
+        _logger.exception(f"{original_error.__class__.__name__}: {original_error}", exc_info=original_error)
+        message = generate_generic_error_message(original_error)
+        await ctx.reply(message)
 
     async def start(self, *_, **__) -> None:
         self.load_settings()
