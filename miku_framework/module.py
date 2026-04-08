@@ -74,7 +74,7 @@ class Module(commands.Cog):
 
     @final
     async def cog_command_error(self, ctx: commands.Context, error: Exception) -> None:
-        """Overriding this method is discouraged in miku framework modules, override `on_module_error` instead."""
+        """Overriding this method is discouraged in miku modules, override `on_module_command_error` instead."""
         original_error = getattr(error, "original", error)
 
         async def respond(message: str) -> Literal[True]:
@@ -91,7 +91,7 @@ class Module(commands.Cog):
 
     @final
     async def cog_app_command_error(self, interaction: Interaction, error: AppCommandError) -> None:
-        """Overriding this method is discouraged in miku framework modules, override `on_module_error` instead."""
+        """Overriding this method is discouraged in miku modules, override `on_module_command_error` instead."""
         original_error = getattr(error, "original", error)
 
         async def respond(message: str) -> Literal[True]:
