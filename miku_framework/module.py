@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 from collections.abc import Callable, Coroutine
-from typing import Any, Literal, final
+from typing import TYPE_CHECKING, Any, Literal, final
 
 import aiofiles
 from discord import Interaction
@@ -9,7 +11,8 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 from pydantic import BaseModel
 
-from miku_framework.bot import Bot
+if TYPE_CHECKING:
+    from miku_framework.bot import Bot
 
 
 class Module(commands.Cog):

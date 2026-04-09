@@ -6,6 +6,7 @@ import os
 import socket
 import sys
 from argparse import Namespace
+from asyncio import subprocess
 from pathlib import Path
 
 import discord
@@ -151,9 +152,27 @@ class Bot(commands.AutoShardedBot):
         _logger.info(f"Saved framework settings to '{self.config_file}'")
 
     async def load_module_from_path(self, path: Path):
-        import_path = path.relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
+        requirements_file = path / "requirements.txt"
+        entrypoint = (path / "__init__.py").relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
 
-        await self.load_extension(import_path)
+        if requirements_file.exists():
+            _logger.info(f"Ensuring dependencies for module '{path.name}'")
+
+            proc = await subprocess.create_subprocess_exec(
+                "uv",
+                "pip",
+                "install",
+                "-r",
+                requirements_file.absolute(),
+                stderr=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                _logger.error(f"Failed to install dependencies for module '{path.name}':\n{stderr.decode()}")
+                return
+
+        await self.load_extension(entrypoint)
 
     async def load_modules(self) -> None:
         _logger.info("All i wanted to do, was follow you. (Loading modules)")
@@ -173,11 +192,11 @@ class Bot(commands.AutoShardedBot):
 
         # load core modules
         for module in self.core_modules_dir.glob("*/__init__.py"):
-            await self.load_module_from_path(module)
+            await self.load_module_from_path(module.parent)
 
         # load modules
         for module in self.modules_dir.glob("*/__init__.py"):
-            await self.load_module_from_path(module)
+            await self.load_module_from_path(module.parent)
 
         _logger.info(
             f"Loaded {len(self.extensions)} module(s).",
