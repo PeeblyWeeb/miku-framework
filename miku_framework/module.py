@@ -9,6 +9,7 @@ import aiofiles
 from discord import Interaction
 from discord.app_commands import AppCommandError
 from discord.ext import commands
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
@@ -29,8 +30,23 @@ class Module(commands.Cog):
 
         self._config: BaseModel | None = None
 
+        self.http_router = APIRouter(
+            prefix=f"/modules/{self.__class__.__name__}",
+            tags=["Module Endpoints", f"{self.__class__.__name__}"],
+        )
+
         if self.bot.launch_args.dev:
             self.logger.setLevel(logging.DEBUG)
+
+    @property
+    def http_endpoint(self):
+        """Returns the corresponding HTTP endpoint for this miku module.
+
+        Example:
+            https://example.com/modules/MyTestModule
+
+        """
+        return f"{self.bot.config.http_url}/modules/{self.__class__.__name__}"
 
     def init_config[T: BaseModel](self, config_model: type[T]) -> T:
         if not self.config_file.exists():
@@ -46,6 +62,11 @@ class Module(commands.Cog):
 
         self._config = config_model(**module_config)
         return self._config
+
+    async def cog_load(self) -> None:
+        self.bot.web_api.include_router(self.http_router)
+
+        return await super().cog_load()
 
     async def cog_unload(self) -> None:
         if self._config:

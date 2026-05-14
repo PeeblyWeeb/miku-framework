@@ -11,8 +11,10 @@ from pathlib import Path
 
 import discord
 import sentry_sdk
+import uvicorn
 from discord.app_commands import AppCommandError
 from discord.ext import commands
+from fastapi import FastAPI
 from watchdog.observers import Observer
 
 from miku_framework.config import FrameworkConfig
@@ -98,6 +100,32 @@ class Bot(commands.AutoShardedBot):
 
         return await super().close()
 
+    def _setup_http(self):
+        self.config.http_url = self.config.http_url.rstrip("/")
+
+        self.web_api = FastAPI(
+            debug=self.launch_args.dev,
+            title="Miku Framework API",
+        )
+        self._http_server = uvicorn.Server(
+            uvicorn.Config(
+                app=self.web_api,
+                host=self.config.http_host,
+                port=self.config.http_port,
+                log_config=None,
+            ),
+        )
+        self._http_task = None
+
+    async def developer_hotreload(self):
+        # reset http server
+        await self._http_server.shutdown()
+        self._setup_http()
+
+        await self.load_modules()
+
+        self._http_task = asyncio.create_task(self._http_server.serve())
+
     async def setup_hook(self) -> None:
         if dsn := os.getenv("SENTRY_DSN"):
             environment = os.getenv("SENTRY_ENVIRONMENT") or "development"
@@ -119,14 +147,18 @@ class Bot(commands.AutoShardedBot):
         else:
             _logger.warning("Missing SENTRY_DSN in environment, sentry will not be initialized.")
 
+        self._setup_http()
+
         await self.load_modules()
+
+        self._http_task = asyncio.create_task(self._http_server.serve())
 
         if self.launch_args.dev:
 
             async def watchdog_callback():
                 _logger.debug("\n\n=== Detected module changes, reloading.. ===\n\n")
 
-                await self.load_modules()
+                await self.developer_hotreload()
 
             self.module_observer = Observer()
             self.module_observer.schedule(
