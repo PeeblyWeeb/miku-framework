@@ -78,6 +78,9 @@ class Bot(commands.AutoShardedBot):
             return
         original_error = getattr(error, "original", error)
 
+        if isinstance(original_error, commands.errors.CommandNotFound):
+            return  # we don't need a whole ass error report for this.
+
         _logger.exception(f"{original_error.__class__.__name__}: {original_error}", exc_info=original_error)
         message = generate_generic_error_message(original_error)
         await ctx.reply(message)
