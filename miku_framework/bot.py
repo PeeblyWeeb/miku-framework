@@ -13,6 +13,7 @@ import discord
 import sentry_sdk
 import uvicorn
 from discord.app_commands import AppCommandError
+from discord.app_commands.errors import MissingPermissions
 from discord.ext import commands
 from fastapi import FastAPI
 from watchdog.observers import Observer
@@ -30,8 +31,12 @@ class CommandTree(discord.app_commands.CommandTree):
         if interaction.extras.get("__mikuframework_already_handled_error"):
             return
 
-        _logger.exception(f"{error.__class__.__name__}: {error}", exc_info=error)
-        message = generate_generic_error_message(error)
+        if isinstance(error, MissingPermissions):
+            message = "🪪 You are missing the required privileges to execute this command!"
+        else:
+            _logger.exception(f"{error.__class__.__name__}: {error}", exc_info=error)
+            message = generate_generic_error_message(error)
+
         if interaction.response.is_done():
             await interaction.edit_original_response(content=message)
         else:
