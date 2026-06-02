@@ -9,7 +9,9 @@ dependencies = [
     "dotenv>=0.9.9",
     "fastapi[standard]>=0.136.1",
     "pydantic>=2.12.5",
+    "python-gelbooru>=0.2.0",
     "sentry-sdk>=2.57.0",
+    "tortoise-orm>=1.1.7",
     "watchdog>=6.0.0",
 ]
 dynamic = ["version"]

@@ -8,11 +8,12 @@ import sys
 from argparse import Namespace
 from asyncio import subprocess
 from pathlib import Path
+from typing import cast
 
 import discord
 import sentry_sdk
 import uvicorn
-from discord.app_commands import AppCommandError
+from discord.app_commands import AppCommandError, ContextMenu
 from discord.app_commands.errors import MissingPermissions
 from discord.ext import commands
 from fastapi import FastAPI
@@ -20,6 +21,7 @@ from watchdog.observers import Observer
 
 from miku_framework.config import FrameworkConfig
 from miku_framework.dev.module_watchdog import AsyncModuleWatchdog
+from miku_framework.errors import GuildDisabledModuleError
 from miku_framework.util import generate_generic_error_message
 
 here = Path(__file__).parent
@@ -27,7 +29,7 @@ _logger = logging.getLogger("framework.bot")
 
 
 class CommandTree(discord.app_commands.CommandTree):
-    async def on_error(self, interaction: discord.Interaction[discord.Client], error: AppCommandError) -> None:
+    async def on_error(self, interaction: discord.Interaction, error: AppCommandError) -> None:
         if interaction.extras.get("__mikuframework_already_handled_error"):
             return
 
@@ -41,6 +43,29 @@ class CommandTree(discord.app_commands.CommandTree):
             await interaction.edit_original_response(content=message)
         else:
             await interaction.response.send_message(message, ephemeral=True)
+
+    async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
+        # hacky, but doing this in the method signature throws an override error, this will do for now.
+        interaction = cast('discord.Interaction["Bot"]', interaction)
+
+        if not interaction.guild:
+            return True
+        if isinstance(interaction.command, ContextMenu):
+            return True
+        if interaction.command is None:
+            return True
+
+        current_module = interaction.command.binding
+        if not current_module:
+            return True  # global commands should always be executable
+
+        module_name = current_module.qualified_name
+
+        disabled_modules = interaction.client.config.per_guild_disabled_modules.get(str(interaction.guild_id)) or []
+        if module_name in disabled_modules:
+            raise GuildDisabledModuleError()
+
+        return True
 
 
 class Bot(commands.AutoShardedBot):
