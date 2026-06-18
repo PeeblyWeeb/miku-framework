@@ -6,7 +6,6 @@ import os
 import socket
 import sys
 from argparse import Namespace
-from asyncio import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -22,6 +21,7 @@ from watchdog.observers import Observer
 from miku_framework.config import FrameworkConfig
 from miku_framework.dev.module_watchdog import AsyncModuleWatchdog
 from miku_framework.errors import GuildDisabledModuleError
+from miku_framework.module import ModuleDescription
 from miku_framework.util import generate_generic_error_message
 
 here = Path(__file__).parent
@@ -216,28 +216,11 @@ class Bot(commands.AutoShardedBot):
             f.write(json.dumps(self.config.model_dump(), indent=4))
         _logger.info(f"Saved framework settings to '{self.config_file}'")
 
-    async def load_module_from_path(self, path: Path):
-        requirements_file = path / "requirements.txt"
-        entrypoint = (path / "__init__.py").relative_to(Path.cwd()).as_posix().replace("/", ".").replace(".py", "")
+    def discover_modules(self, discovery_path: Path) -> list[ModuleDescription]:
+        return [ModuleDescription(pyproject_file) for pyproject_file in discovery_path.glob("*/pyproject.toml")]
 
-        if requirements_file.exists():
-            _logger.info(f"Ensuring dependencies for module '{path.name}'")
-
-            proc = await subprocess.create_subprocess_exec(
-                "uv",
-                "pip",
-                "install",
-                "-r",
-                requirements_file.absolute(),
-                stderr=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                _logger.error(f"Failed to install dependencies for module '{path.name}':\n{stderr.decode()}")
-                return
-
-        await self.load_extension(entrypoint)
+    async def load_module_from_description(self, description: ModuleDescription):
+        await self.load_extension(description.import_path)
 
     async def load_modules(self) -> None:
         _logger.info("All i wanted to do, was follow you. (Loading modules)")
@@ -253,16 +236,22 @@ class Bot(commands.AutoShardedBot):
 
                     del sys.modules[module_name]
 
+        # install module dependencies
+        for description in [
+            *self.discover_modules(self.core_modules_dir),
+            *self.discover_modules(self.modules_dir),
+        ]:
+            description.install_dependencies()
+
         importlib.invalidate_caches()
 
-        # load core modules
-        for module in self.core_modules_dir.glob("*/__init__.py"):
-            await self.load_module_from_path(module.parent)
-
         # load modules
-        for module in self.modules_dir.glob("*/__init__.py"):
-            await self.load_module_from_path(module.parent)
+        for description in [
+            *self.discover_modules(self.core_modules_dir),
+            *self.discover_modules(self.modules_dir),
+        ]:
+            await self.load_module_from_description(description)
 
         _logger.info(
-            f"Loaded {len(self.extensions)} module(s).",
+            f"Loaded {len(self.cogs)} module(s). [{', '.join([cog.__class__.__name__ for cog in self.cogs.values()])}]",
         )

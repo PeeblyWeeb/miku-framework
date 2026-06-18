@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
+import tomllib
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, final
 
 import aiofiles
@@ -14,6 +17,27 @@ from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from miku_framework.bot import Bot
+
+_logger = logging.getLogger("framework.module")
+
+
+class ModuleDescription:
+    def __init__(self, pyproject_path: Path) -> None:
+        with open(pyproject_path) as f:
+            pyproject = tomllib.loads(f.read())
+
+            self.name = pyproject.get("project", {})["name"]
+            self.dependencies = pyproject.get("project", {}).get("dependencies", [])
+
+        self.import_path = pyproject_path.parent.relative_to(Path.cwd()).as_posix().replace("/", ".")
+
+    def install_dependencies(self):
+        if self.dependencies:
+            _logger.info(f"Installing required dependencies for '{self.name}': {self.dependencies}")
+            subprocess.run(  # noqa: S603
+                ["uv", "pip", "install", *self.dependencies],  # noqa: S607
+                check=True,
+            )
 
 
 class Module(commands.Cog):
