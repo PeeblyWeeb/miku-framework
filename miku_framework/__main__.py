@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 
 import discord
 from dotenv import load_dotenv
@@ -22,6 +23,10 @@ args = parser.parse_args()
 if __name__ == "__main__":
     load_dotenv()
     discord.utils.setup_logging()
+
+    if Path("/.dockerenv").exists():
+        _logger.info("Docker environment detected, manually loading '/usr/lib/libopus.so.0'")
+        discord.opus.load_opus("/usr/lib/libopus.so.0")
 
     _logger.info(f"Running with arguments: {args}")
     bot = Bot(args)
