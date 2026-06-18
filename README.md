@@ -1,16 +1,10 @@
-# Developing
+# Developing (both for the framework and for modules)
 
 - Clone this repository
-- Open in **Visual Studio Code** (please use vscode)
-  - Install suggested extensions
-- Run `uv run python -m miku_framework`
+- Copy `.env.example` to `.env` and fill
+- Run `uv run python -m miku_framework` (optionally with --dev for module hot-reload)
 
-# Installation
-
-## Manual
-
-- `uv add git+ssh://git@lab.ripples.gay:2221/miku-discord-bot/miku-framework.git`
-- Then use by running: `uv run python -m miku_framework`
+# Running
 
 ## Docker
 
