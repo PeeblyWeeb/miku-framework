@@ -1,0 +1,5 @@
+[project]
+name = "module_manager"
+version = "0.0.0"
+description = "Module Manager core module for the Miku Framework"
+requires-python = ">=3.13"
