@@ -12,11 +12,11 @@ dependencies = [
     "pydantic>=2.12.5",
     "sentry-sdk>=2.57.0",
     "watchdog>=6.0.0",
-
     # these dependencies are not core to the framework
     # however they are required before startup for some bots, so we install them by default.
     "pynacl>=1.6.2",
     "davey>=0.1.5",
+    "sqlalchemy>=2.0.54",
 ]
 dynamic = ["version"]
 
