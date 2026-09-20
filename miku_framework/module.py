@@ -14,6 +14,8 @@ from discord.app_commands import AppCommandError
 from discord.ext import commands
 from fastapi import APIRouter
 from pydantic import BaseModel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 if TYPE_CHECKING:
     from miku_framework.bot import Bot
@@ -54,6 +56,12 @@ class Module(commands.Cog):
 
         self._config: BaseModel | None = None
 
+        self._db_file = self.storage_path / "db.sqlite"
+        self._db_engine = create_engine(
+            url=f"sqlite+pysqlite:///{self._db_file.as_posix()}",
+            echo=True,
+        )
+
         self.http_router = APIRouter(
             prefix=f"/modules/{self.__class__.__name__}",
             tags=["Module Endpoints", f"{self.__class__.__name__}"],
@@ -61,6 +69,23 @@ class Module(commands.Cog):
 
         if self.bot.launch_args.dev:
             self.logger.setLevel(logging.DEBUG)
+
+    def init_db(self, base: type[DeclarativeBase]):
+        """Initializes (or loads) an sqlite database for this module using sqlalchemy.
+
+        :param base:
+            If initializing a database for the first time, used for generating and emitting DDL.
+
+        Returns:
+            An sqlalchemy sessionmaker object.
+
+        """
+        if not self._db_file.exists():
+            self.logger.info("Does not have an existing database file, creating it now..")
+
+            base.metadata.create_all(self._db_engine)
+
+        return sessionmaker(self._db_engine)
 
     @property
     def http_endpoint(self):
