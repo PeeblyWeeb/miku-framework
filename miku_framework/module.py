@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import subprocess
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, final
 
 import aiofiles
+from alembic import command
+from alembic.config import Config
 from discord import Interaction
 from discord.app_commands import AppCommandError
 from discord.ext import commands
@@ -20,6 +23,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 if TYPE_CHECKING:
     from miku_framework.bot import Bot
 
+here = Path(__file__).parent
 _logger = logging.getLogger("framework.module")
 
 
@@ -47,19 +51,26 @@ class Module(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"[Module] {self.__class__.__name__}")
 
+        module_path = Path(inspect.getfile(type(self))).parent
+        # no .mkdir() here, because it should already exist.
+        self.module_path = module_path.resolve()
+
         storage_path = self.bot.storage_dir / self.__class__.__name__
         storage_path.mkdir(exist_ok=True)
         self.storage_path = storage_path.resolve()
 
         config_file = self.bot.config_dir / f"{self.__class__.__name__}.json"
         self.config_file = config_file.resolve()
-
         self._config: BaseModel | None = None
 
+        migrations_path = self.module_path / "migrations"
+        # no .mkdir() here, this should be created by the module developer.
+        self.migrations_path = migrations_path.resolve()
+
+        self.db_base: type[DeclarativeBase] | None = None
         self._db_file = self.storage_path / "db.sqlite"
         self._db_engine = create_engine(
             url=f"sqlite+pysqlite:///{self._db_file.as_posix()}",
-            echo=True,
         )
 
         self.http_router = APIRouter(
@@ -69,6 +80,21 @@ class Module(commands.Cog):
 
         if self.bot.launch_args.dev:
             self.logger.setLevel(logging.DEBUG)
+
+    def get_alembic_config(self, base: type[DeclarativeBase]) -> Config:
+        config = Config()
+
+        config.set_main_option("script_location", (here / "alembic").as_posix())
+        config.set_main_option("version_locations", self.migrations_path.as_posix())
+        config.attributes["migration_path"] = self.migrations_path
+        config.attributes["target_metadata"] = base.metadata
+        config.attributes["engine"] = self._db_engine
+
+        return config
+
+    def _run_database_migrations(self, base: type[DeclarativeBase]):
+        config = self.get_alembic_config(base)
+        command.upgrade(config, "head")
 
     def init_db(self, base: type[DeclarativeBase]):
         """Initializes (or loads) an sqlite database for this module using sqlalchemy.
@@ -80,10 +106,11 @@ class Module(commands.Cog):
             An sqlalchemy sessionmaker object.
 
         """
+        self.db_base = base
         if not self._db_file.exists():
             self.logger.info("Does not have an existing database file, creating it now..")
 
-            base.metadata.create_all(self._db_engine)
+        self._run_database_migrations(base)
 
         return sessionmaker(self._db_engine)
 

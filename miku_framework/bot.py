@@ -97,6 +97,8 @@ class Bot(commands.AutoShardedBot):
         if self.launch_args.dev:
             _logger.setLevel(logging.DEBUG)
 
+        self.load_settings()
+
         super().__init__(
             command_prefix=[],
             intents=discord.Intents.all(),
@@ -116,8 +118,6 @@ class Bot(commands.AutoShardedBot):
         await ctx.reply(message)
 
     async def start(self, *_, **__) -> None:
-        self.load_settings()
-
         self.command_prefix = commands.when_mentioned_or(*self.config.command_prefixes)
 
         if not (token := os.getenv("DISCORD_TOKEN")):
